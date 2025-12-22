@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    env_file:
+      - .env.dev
+    volumes:
+      - ./product:/var/www/html
+    depends_on:
+      - mariadb
+      - redis
+    networks:
+      - internal
+  mariadb:
+    image: mariadb:latest
+    command: --bind-address=0.0.0.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./database/user.sql:/docker-entrypoint-initdb.d/user.sql
+    networks:
+      - internal
+  redis:
+    image: redis:alpine
+    networks:
+      - internal
+
+volumes:
+  mariadb_data:
+
+networks:
+  internal:
+    driver: bridge
