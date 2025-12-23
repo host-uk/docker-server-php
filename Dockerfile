@@ -26,7 +26,6 @@ RUN apk add --no-cache \
   php84-mysqli \
   php84-opcache \
   php84-openssl \
-  php84-pcntl \
   php84-pdo \
   php84-pdo_mysql \
   php84-phar \
