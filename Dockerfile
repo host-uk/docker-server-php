@@ -12,26 +12,40 @@ RUN apk add --no-cache \
   curl \
   nginx \
   php84 \
+  php84-bcmath \
   php84-ctype \
   php84-curl \
   php84-dom \
+  php84-exif \
   php84-fileinfo \
   php84-fpm \
   php84-gd \
-  php84-intl \
   php84-iconv \
+  php84-intl \
   php84-mbstring \
   php84-mysqli \
   php84-opcache \
   php84-openssl \
+  php84-pcntl \
+  php84-pdo \
+  php84-pdo_mysql \
   php84-phar \
+  php84-posix \
   php84-redis \
   php84-session \
+  php84-simplexml \
+  php84-sodium \
   php84-tokenizer \
   php84-xml \
   php84-xmlreader \
   php84-xmlwriter \
+  php84-zip \
   supervisor
+
+# Create symlink for php
+RUN ln -s /usr/bin/php84 /usr/bin/php
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
 # Configure nginx - http
 COPY config/nginx.conf /etc/nginx/nginx.conf
@@ -54,6 +68,8 @@ USER nobody
 COPY --chown=nobody product/ /var/www/html/
 # Apply Patches
 COPY --chown=nobody patch/ /var/www/html/
+# Install dependencies
+RUN composer install --no-dev --no-interaction --optimize-autoloader
 # Let supervisord start nginx & php-fpm
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 # Expose the port nginx is reachable on
