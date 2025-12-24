@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# GitHub
+.github
+
+# Documentation
+docs
+*.md
+!README.md
+
+# IDE/Editors
+.idea
+.vscode
+*.swp
+*.swo
+*.sublime-*
+*.iml
+.project
+.settings
+.buildpath
+
+# OS files
+.DS_Store
+Thumbs.db
+*.bak
+*~
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Test/Coverage
+coverage/
+.coverage
+.nyc_output
+.phpunit.result.cache
+phpunit.xml
+
+# Cache
+.cache/
+*.cache
+
+# Node.js (if present)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+site/
+dist/
+build/
+
+# Database dumps (keep schema)
+*.sql
+!database/*.sql
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Local overrides
+docker-compose.override.yml
+docker-compose.local.yml
+Makefile.local

@@ -1,0 +1,98 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the form below.
+
+  - type: dropdown
+    id: php-version
+    attributes:
+      label: PHP Version
+      description: Which PHP version are you using?
+      options:
+        - "8.5"
+        - "8.4"
+        - "8.3"
+        - "8.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build-target
+    attributes:
+      label: Build Target
+      description: Which build target are you using?
+      options:
+        - production
+        - development
+        - runtime
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Build image with '...'
+        2. Run container with '...'
+        3. Access '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Include relevant logs or error messages
+      render: shell
+      placeholder: |
+        Paste logs here...
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Additional environment details
+      placeholder: |
+        - OS: [e.g., Ubuntu 22.04]
+        - Docker version: [e.g., 24.0.5]
+        - Docker Compose version: [e.g., v2.20.0]
+        - Architecture: [e.g., amd64, arm64]
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem
