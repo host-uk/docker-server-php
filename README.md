@@ -1,96 +1,335 @@
-# Docker Server PHP Template
+# Docker Server PHP
 
-This is a simple, easy-to-use Docker template for PHP applications. It provides a lightweight environment using Alpine Linux, Nginx, PHP 8.4, and Supervisor.
+Production-ready Docker base image for PHP applications using Alpine Linux, Nginx, and PHP-FPM.
 
-It is designed to be flexible: you can drop your application code into the `product` directory, and if you need to override any files (e.g., for a third-party application you are maintaining), you can place the modified files in the `patch` directory.
+[![Build and Publish](https://github.com/host-uk/docker-server-php/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/host-uk/docker-server-php/actions/workflows/build-and-publish.yml)
 
 ## Features
 
-*   **OS**: Alpine Linux
-*   **Web Server**: Nginx
-*   **PHP**: PHP 8.4 (with common extensions like gd, intl, mbstring, mysqli, redis, etc.)
-*   **Process Manager**: Supervisor
-*   **Database**: MariaDB (in dev mode)
-*   **Cache**: Redis (in dev mode)
-*   **Non-root**: Runs as `nobody` user for security
+### Core Stack
+- **OS**: Alpine Linux (3.19-3.23)
+- **Web Server**: Nginx with security hardening
+- **PHP**: Multiple versions supported (8.2, 8.3, 8.4, 8.5)
+- **Process Manager**: Supervisor
+- **Architecture**: Multi-architecture support (amd64, arm64)
+
+### Production-Ready
+- ✅ **Multi-stage builds** - Optimized image size (~30-40% smaller)
+- ✅ **Security hardening** - CSP, X-Frame-Options, rate limiting
+- ✅ **12-Factor app** - Environment-based configuration
+- ✅ **Health checks** - Database, Redis, filesystem monitoring
+- ✅ **Non-root user** - Runs as `nobody` for security
+- ✅ **Structured logging** - JSON logs with performance metrics
+- ✅ **OPcache** - Production-optimized PHP acceleration
+
+### Developer Experience
+- 🔧 Flexible `product/` and `patch/` directory structure
+- 🔧 Hot-reload friendly for local development
+- 🔧 Comprehensive Makefile for common tasks
+- 🔧 Docker Compose support with MariaDB and Redis
+
+## Quick Start
+
+### Using Pre-built Images
+
+```bash
+# Pull the latest image (PHP 8.5)
+docker pull ghcr.io/host-uk/docker-server-php:latest
+
+# Or specify a version
+docker pull ghcr.io/host-uk/docker-server-php:8.5
+docker pull ghcr.io/host-uk/docker-server-php:8.4
+docker pull ghcr.io/host-uk/docker-server-php:8.3
+docker pull ghcr.io/host-uk/docker-server-php:8.2
+```
+
+### Using as Base Image
+
+```dockerfile
+FROM ghcr.io/host-uk/docker-server-php:8.5
+
+# Copy your application
+COPY --chown=nobody:nobody . /var/www/html
+
+# Environment variables will be injected at runtime
+ENV PHP_MEMORY_LIMIT=512M
+ENV PHP_UPLOAD_MAX_FILESIZE=100M
+```
+
+### Local Development
+
+1. **Clone the template**:
+   ```bash
+   git clone https://github.com/host-uk/docker-server-php.git
+   cd docker-server-php
+   ```
+
+2. **Add your code**:
+   - Place your PHP application in `product/`
+   - Optional overrides in `patch/`
+
+3. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
+
+4. **Start development environment**:
+   ```bash
+   make up
+   ```
+
+   Your app will be available at `http://localhost:8080`
 
 ## Directory Structure
 
-*   `product/`: Place your main PHP application code here.
-*   `patch/`: Place any files you want to override here. Files in this directory are copied *after* the `product` directory, overwriting any matching files.
-*   `config/`: Nginx, PHP, and Supervisor configuration files.
-*   `database/`: SQL scripts for database initialization (`schema.sql`, `user.sql`).
+```
+.
+├── product/              # Your PHP application code
+├── patch/                # Optional file overrides
+├── config/               # Nginx, PHP, and Supervisor configs
+│   ├── nginx.conf
+│   ├── conf.d/
+│   ├── php.ini.template
+│   └── fpm-pool.conf.template
+├── scripts/              # Utility scripts
+│   ├── entrypoint.sh
+│   └── build-all-versions.sh
+├── database/             # SQL initialization scripts
+│   ├── schema.sql
+│   └── user.sql
+└── .github/workflows/    # CI/CD workflows
+```
 
-## Getting Started
+## Available PHP Versions
 
-### Prerequisites
+| PHP Version | Alpine Version | Tag |
+|-------------|----------------|-----|
+| 8.5 | 3.23 | `latest`, `8.5`, `8.5-alpine3.23` |
+| 8.4 | 3.22 | `8.4`, `8.4-alpine3.22` |
+| 8.4 | 3.21 | `8.4-alpine3.21` |
+| 8.3 | 3.20 | `8.3`, `8.3-alpine3.20` |
+| 8.2 | 3.19 | `8.2`, `8.2-alpine3.19` |
 
-*   Docker
-*   Docker Compose
-*   Make (optional, but recommended for using the provided Makefile)
+## Configuration
 
-### Usage
+All configuration is managed via environment variables following the [12-Factor App](https://12factor.net/) methodology.
 
-1.  **Add your code**: Copy your PHP application into the `product/` folder.
-2.  **Apply patches (optional)**: If you need to modify specific files without changing the original source in `product/`, place the modified versions in the `patch/` folder maintaining the same directory structure.
-3.  **Configure Environment**:
-    *   Copy `.env.dev` to `.env` (or just use `.env.dev` as configured in the compose files).
-    *   Adjust database credentials and other settings in the `.env` file.
+### PHP Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PHP_TIMEZONE` | `UTC` | PHP timezone |
+| `PHP_MEMORY_LIMIT` | `256M` | Memory limit |
+| `PHP_UPLOAD_MAX_FILESIZE` | `64M` | Max upload size |
+| `PHP_POST_MAX_SIZE` | `64M` | Max POST size |
+| `PHP_MAX_EXECUTION_TIME` | `300` | Max execution time (seconds) |
+| `PHP_MAX_INPUT_VARS` | `1000` | Max input variables |
+| `PHP_OPCACHE_ENABLE` | `1` | Enable OPcache |
+| `PHP_OPCACHE_MEMORY` | `128` | OPcache memory (MB) |
+
+### PHP-FPM Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PHP_FPM_PM` | `ondemand` | Process manager type |
+| `PHP_FPM_MAX_CHILDREN` | `100` | Max child processes |
+| `PHP_FPM_START_SERVERS` | `5` | Start servers (dynamic only) |
+| `PHP_FPM_MIN_SPARE_SERVERS` | `5` | Min spare (dynamic only) |
+| `PHP_FPM_MAX_SPARE_SERVERS` | `10` | Max spare (dynamic only) |
+| `PHP_FPM_PROCESS_IDLE_TIMEOUT` | `10s` | Idle timeout (ondemand) |
+| `PHP_FPM_MAX_REQUESTS` | `1000` | Max requests per child |
+
+### Database Configuration (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `DB_HOST` or `MYSQL_HOST` | Database host |
+| `DB_USER` or `MYSQL_USER` | Database user |
+| `DB_PASSWORD` or `MYSQL_PASSWORD` | Database password |
+| `DB_NAME` or `MYSQL_DATABASE` | Database name |
+
+### Redis Configuration (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `REDIS_HOST` | Redis host |
+| `REDIS_PORT` | Redis port (default: 6379) |
+
+### Sentry Configuration (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `SENTRY_ENABLED` | Set to `true` to enable |
+| `SENTRY_DSN` | Sentry DSN |
+| `SENTRY_ENVIRONMENT` | Environment (e.g., production) |
+| `SENTRY_TRACE_SAMPLE_RATE` | Trace sample rate (0.0-1.0) |
+| `APP_VERSION` | Application version for release tracking |
+
+## Makefile Commands
 
 ### Development
 
-A `Makefile` is provided to simplify common development tasks.
+```bash
+make up           # Start dev environment
+make down         # Stop dev environment
+make restart      # Restart containers
+make logs         # View logs
+make shell        # Access app shell
+make clean        # Remove all containers and volumes
+```
 
-*   **Start the environment**:
-    ```bash
-    make up
-    ```
-    This builds the images and starts the containers (App, MariaDB, Redis) in the background. The app will be available at `http://localhost:8080`.
+### Database
 
-*   **Stop the environment**:
-    ```bash
-    make down
-    ```
+```bash
+make db-shell     # Access MariaDB shell
+make db-export    # Export database to database/dump.sql
+make reset-db     # Reset database (WARNING: destroys data)
+```
 
-*   **View logs**:
-    ```bash
-    make logs
-    ```
+### Building
 
-*   **Access the container shell**:
-    ```bash
-    make shell
-    ```
+```bash
+make build        # Build image for current platform
+make build-all    # Build all PHP versions
+make push         # Push to registry
+```
 
-#### Database Management
+## Health Checks
 
-*   **Access the Database shell**:
-    ```bash
-    make db-shell
-    ```
+The image includes a comprehensive health check endpoint at `/health`:
 
-*   **Export Database**:
-    ```bash
-    make db-export
-    ```
-    Exports the database to `database/dump.sql`.
+```bash
+curl http://localhost/health
+```
 
-*   **Import/Reset Database**:
-    To examine a database backup or reset the database to a clean state:
-    1.  Paste your SQL dump (or schema definitions) into `database/schema.sql`.
-    2.  Run the reset command:
-        ```bash
-        make reset-db
-        ```
-    **Warning**: This will destroy the existing database volume and all data within it, then re-initialize it using the contents of `database/schema.sql`.
+Response:
+```json
+{
+  "status": "healthy",
+  "timestamp": 1703001234,
+  "checks": {
+    "database": "healthy",
+    "redis": "healthy",
+    "filesystem": "healthy",
+    "opcache": "healthy"
+  },
+  "info": {
+    "php_version": "8.4.0",
+    "hostname": "abc123",
+    "opcache_memory_usage": "12.45MB"
+  }
+}
+```
 
-## Production
+## Security Features
 
-The `Dockerfile` is designed to be self-contained. When building the image, it copies the configuration, `product` code, and `patch` files into the image.
+- **Security headers**: X-Frame-Options, X-Content-Type-Options, CSP, etc.
+- **Rate limiting**: Configurable request rate limits
+- **File access restrictions**: Blocks access to `.env`, `.git`, `composer.*` files
+- **Non-root execution**: Runs as `nobody` user
+- **Hidden PHP version**: Removes `X-Powered-By` header
+- **Static file caching**: Optimized cache headers for assets
 
-The `docker-compose.yaml` file is a minimal example for running the built image, exposing port 80.
+## Building Multiple PHP Versions
 
-## Customization
+### Using the build script
 
-*   **PHP/Nginx Config**: You can modify the configuration files in the `config/` directory.
-*   **Extensions**: Add or remove PHP extensions in the `Dockerfile`.
+```bash
+./scripts/build-all-versions.sh           # Build locally
+./scripts/build-all-versions.sh --push    # Build and push to registry
+```
+
+### Manual build
+
+```bash
+# Build PHP 8.5 (latest)
+docker build --build-arg ALPINE_VERSION=3.23 --build-arg PHP_VERSION=85 -t myapp:8.5 .
+
+# Build PHP 8.4
+docker build --build-arg ALPINE_VERSION=3.22 --build-arg PHP_VERSION=84 -t myapp:8.4 .
+
+# Build PHP 8.3
+docker build --build-arg ALPINE_VERSION=3.20 --build-arg PHP_VERSION=83 -t myapp:8.3 .
+```
+
+## GitHub Actions
+
+The repository includes a GitHub Actions workflow that automatically:
+
+1. Builds images for all supported PHP versions
+2. Runs tests on each version
+3. Pushes to GitHub Container Registry
+4. Supports multi-architecture builds (amd64, arm64)
+
+Triggered on:
+- Push to `main` branch
+- Git tags starting with `v*`
+- Pull requests
+
+## Production Deployment
+
+### Docker Compose Example
+
+```yaml
+services:
+  app:
+    image: ghcr.io/host-uk/docker-server-php:8.5
+    ports:
+      - "80:80"
+    environment:
+      PHP_MEMORY_LIMIT: 512M
+      DB_HOST: mariadb
+      DB_USER: myapp
+      DB_PASSWORD: secret
+      DB_NAME: myapp
+      REDIS_HOST: redis
+    volumes:
+      - ./app:/var/www/html
+    restart: unless-stopped
+
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: myapp
+      MYSQL_USER: myapp
+      MYSQL_PASSWORD: secret
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mariadb_data:
+  redis_data:
+```
+
+### Coolify Deployment
+
+1. Create new service in Coolify
+2. Set Docker image to `ghcr.io/host-uk/docker-server-php:8.5` (or `8.4`, `8.3`, `8.2`)
+3. Configure environment variables
+4. Set up Traefik routing
+5. Deploy
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+EUPL-1.2
+
+## Support
+
+- **Issues**: https://github.com/host-uk/docker-server-php/issues
+- **Documentation**: https://github.com/host-uk/docker-server-php/wiki

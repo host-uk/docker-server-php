@@ -1,0 +1,20 @@
+[Date]
+date.timezone="${PHP_TIMEZONE:-UTC}"
+
+[PHP]
+expose_php = Off
+upload_max_filesize = ${PHP_UPLOAD_MAX_FILESIZE:-64M}
+post_max_size = ${PHP_POST_MAX_SIZE:-64M}
+memory_limit = ${PHP_MEMORY_LIMIT:-256M}
+max_execution_time = ${PHP_MAX_EXECUTION_TIME:-300}
+max_input_vars = ${PHP_MAX_INPUT_VARS:-1000}
+max_input_time = ${PHP_MAX_INPUT_TIME:-300}
+
+[opcache]
+opcache.enable = ${PHP_OPCACHE_ENABLE:-1}
+opcache.memory_consumption = ${PHP_OPCACHE_MEMORY:-128}
+opcache.interned_strings_buffer = ${PHP_OPCACHE_STRINGS:-8}
+opcache.max_accelerated_files = ${PHP_OPCACHE_FILES:-4000}
+opcache.revalidate_freq = ${PHP_OPCACHE_REVALIDATE:-2}
+opcache.validate_timestamps = ${PHP_OPCACHE_VALIDATE_TIMESTAMPS:-1}
+opcache.fast_shutdown = 1
