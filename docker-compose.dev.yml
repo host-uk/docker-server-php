@@ -1,10 +1,18 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: development
     ports:
       - "8080:80"
     env_file:
       - .env.dev
+    environment:
+      APP_ENV: development
+      XDEBUG_MODE: develop,debug,coverage
+      XDEBUG_CLIENT_HOST: host.docker.internal
+      XDEBUG_CLIENT_PORT: 9003
+      XDEBUG_START_WITH_REQUEST: trigger
     volumes:
       - ./product:/var/www/html
     depends_on:
@@ -12,6 +20,9 @@ services:
       - redis
     networks:
       - internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   mariadb:
     image: mariadb:latest
     command: --bind-address=0.0.0.0
@@ -26,6 +37,7 @@ services:
       - ./database/user.sql:/docker-entrypoint-initdb.d/user.sql
     networks:
       - internal
+
   redis:
     image: redis:alpine
     networks:

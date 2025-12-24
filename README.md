@@ -3,6 +3,9 @@
 Production-ready Docker base image for PHP applications using Alpine Linux, Nginx, and PHP-FPM.
 
 [![Build and Publish](https://github.com/host-uk/docker-server-php/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/host-uk/docker-server-php/actions/workflows/build-and-publish.yml)
+[![Documentation](https://github.com/host-uk/docker-server-php/actions/workflows/docs.yml/badge.svg)](https://host-uk.github.io/docker-server-php)
+
+**[Documentation](https://host-uk.github.io/docker-server-php)** | [Getting Started](https://host-uk.github.io/docker-server-php/getting-started/) | [Configuration](https://host-uk.github.io/docker-server-php/configuration/)
 
 ## Features
 
@@ -15,14 +18,18 @@ Production-ready Docker base image for PHP applications using Alpine Linux, Ngin
 
 ### Production-Ready
 - ✅ **Multi-stage builds** - Optimized image size (~30-40% smaller)
-- ✅ **Security hardening** - CSP, X-Frame-Options, rate limiting
+- ✅ **Security hardening** - CSP, X-Frame-Options, disabled dangerous functions
 - ✅ **12-Factor app** - Environment-based configuration
 - ✅ **Health checks** - Database, Redis, filesystem monitoring
 - ✅ **Non-root user** - Runs as `nobody` for security
 - ✅ **Structured logging** - JSON logs with performance metrics
-- ✅ **OPcache** - Production-optimized PHP acceleration
+- ✅ **OPcache with JIT** - Production-optimized PHP acceleration
+- ✅ **Brotli compression** - ~20% smaller than gzip
+- ✅ **Sentry integration** - Optional error monitoring
 
 ### Developer Experience
+- 🔧 **Xdebug** - Step debugging, profiling, coverage
+- 🔧 **PHPUnit, PHPStan, PHP_CodeSniffer** - Pre-installed in dev image
 - 🔧 Flexible `product/` and `patch/` directory structure
 - 🔧 Hot-reload friendly for local development
 - 🔧 Comprehensive Makefile for common tasks
@@ -101,6 +108,36 @@ ENV PHP_UPLOAD_MAX_FILESIZE=100M
 └── .github/workflows/    # CI/CD workflows
 ```
 
+## Build Targets
+
+The Dockerfile provides multiple build targets for different use cases:
+
+| Target | Use Case | Features |
+|--------|----------|----------|
+| `runtime` | Base image | PHP, Nginx, Supervisor |
+| `development` | Local development | Xdebug, PHPUnit, PHPStan, Composer |
+| `production` | Production deployment | Hardened, OPcache+JIT, Brotli, security |
+
+### Building for Development
+
+```bash
+# Using docker-compose (recommended)
+docker compose -f docker-compose.dev.yml up
+
+# Or manually
+docker build --target development -t myapp:dev .
+```
+
+### Building for Production
+
+```bash
+# Using docker-compose
+docker compose up
+
+# Or manually
+docker build --target production -t myapp:prod .
+```
+
 ## Available PHP Versions
 
 | PHP Version | Alpine Version | Tag |
@@ -166,6 +203,96 @@ All configuration is managed via environment variables following the [12-Factor 
 | `SENTRY_TRACE_SAMPLE_RATE` | Trace sample rate (0.0-1.0) |
 | `APP_VERSION` | Application version for release tracking |
 
+#### Setting Up Sentry
+
+1. **Install the Sentry SDK** in your application:
+   ```bash
+   composer require sentry/sentry
+   ```
+
+2. **Get your DSN** from your Sentry project settings (self-hosted or sentry.io)
+
+3. **Configure environment variables**:
+   ```bash
+   SENTRY_ENABLED=true
+   SENTRY_DSN=https://your-key@sentry.example.com/project-id
+   SENTRY_ENVIRONMENT=production
+   SENTRY_TRACE_SAMPLE_RATE=0.1
+   APP_VERSION=1.0.0
+   ```
+
+4. **Restart the container** - Sentry will be auto-initialized for all PHP requests
+
+The initialization script (`sentry-init.php`) is automatically prepended to all PHP requests when enabled. It handles:
+- Error and exception capturing
+- Performance tracing (configurable sample rate)
+- Environment and release tagging
+- Health check endpoint filtering
+
+### Development Tools (dev target only)
+
+The development image includes pre-installed tools:
+
+| Tool | Command | Description |
+|------|---------|-------------|
+| Xdebug | (auto-loaded) | Step debugging, profiling, coverage |
+| PHPUnit | `phpunit` | Testing framework |
+| PHPStan | `phpstan` | Static analysis |
+| PHP_CodeSniffer | `phpcs`, `phpcbf` | Code style checking/fixing |
+| PHP-CS-Fixer | `php-cs-fixer` | Code style fixer |
+| Composer | `composer` | Dependency management |
+
+### Xdebug Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `XDEBUG_MODE` | `develop,debug,coverage` | Xdebug modes to enable |
+| `XDEBUG_CLIENT_HOST` | `host.docker.internal` | IDE host address |
+| `XDEBUG_CLIENT_PORT` | `9003` | IDE debug port |
+| `XDEBUG_START_WITH_REQUEST` | `trigger` | When to start debugging |
+| `XDEBUG_IDEKEY` | `PHPSTORM` | IDE key for session |
+
+#### IDE Setup (VS Code)
+
+Add to `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Listen for Xdebug",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}/product"
+      }
+    }
+  ]
+}
+```
+
+#### Triggering Debug Sessions
+
+With `XDEBUG_START_WITH_REQUEST=trigger`, start debugging by:
+- Browser extension: [Xdebug Helper](https://chrome.google.com/webstore/detail/xdebug-helper)
+- Query parameter: `?XDEBUG_TRIGGER=1`
+- Cookie: `XDEBUG_TRIGGER=1`
+
+### Production Optimizations
+
+The production image includes:
+
+| Feature | Description |
+|---------|-------------|
+| **OPcache + JIT** | Precompiled PHP with JIT compilation |
+| **Brotli compression** | ~20% smaller than gzip for text assets |
+| **Disabled functions** | `exec`, `shell_exec`, `system`, etc. |
+| **Security headers** | X-Frame-Options, CSP, Referrer-Policy |
+| **Minimal users** | Only `root` and `nobody` accounts |
+| **No shell access** | Interactive shells removed |
+
 ## Makefile Commands
 
 ### Development
@@ -190,9 +317,20 @@ make reset-db     # Reset database (WARNING: destroys data)
 ### Building
 
 ```bash
-make build        # Build image for current platform
-make build-all    # Build all PHP versions
-make push         # Push to registry
+make build          # Build image for current platform
+make build-dev      # Build development image
+make build-prod     # Build production image
+make build-all      # Build all PHP versions
+make push           # Push to registry
+```
+
+### Testing
+
+```bash
+make test           # Basic tests on running container
+make test-dev       # Build and test development target
+make test-prod      # Build and test production target
+make test-targets   # Test all build targets
 ```
 
 ## Health Checks

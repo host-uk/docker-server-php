@@ -1,1 +1,67 @@
-.idea
+# IDE/Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+*.iml
+.project
+.settings/
+.buildpath
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+*.bak
+*~
+._*
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.dev
+
+# Logs
+*.log
+logs/
+
+# Test/Coverage
+coverage/
+.coverage
+.nyc_output/
+.phpunit.result.cache
+phpunit.xml
+.phpstan/
+
+# Cache
+.cache/
+*.cache
+
+# Node.js (if present)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Build artifacts
+site/
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Local overrides
+docker-compose.override.yml
+docker-compose.local.yml
+Makefile.local
+
+# Secrets
+*.pem
+*.key
+secrets/

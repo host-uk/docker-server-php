@@ -1,7 +1,11 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: production
     ports:
       - "80"
     env_file:
-      - .env.dev
+      - .env
+    environment:
+      APP_ENV: production

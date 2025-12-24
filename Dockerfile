@@ -1,6 +1,12 @@
 # ============================================================
 # Multi-stage Dockerfile for Alpine + Nginx + PHP-FPM
 # Supports dynamic PHP versions based on Alpine version
+#
+# Build targets:
+#   - builder:    Composer install and asset building
+#   - runtime:    Base runtime with PHP and Nginx
+#   - development: Dev tools (xdebug, phpunit, profiling)
+#   - production:  Hardened production image (default)
 # ============================================================
 
 # Build arguments for version control
@@ -50,17 +56,15 @@ RUN if [ -f composer.json ]; then \
     fi
 COPY patch/ ./
 
-# Run any additional build steps here
-# RUN npm install && npm run build
-
 # ============================================================
-# Stage 2: Runtime - Minimal production image
+# Stage 2: Runtime - Base image with PHP and Nginx
 # ============================================================
 FROM alpine:${ALPINE_VERSION} AS runtime
 
 ARG PHP_VERSION
 ENV PHP_VERSION=${PHP_VERSION}
 ENV PHP_INI_DIR=/etc/php${PHP_VERSION}
+ENV APP_ENV=production
 
 LABEL maintainer="Snider <snider@host.uk.com>"
 LABEL org.opencontainers.image.source="https://github.com/host-uk/docker-server-php"
@@ -73,6 +77,7 @@ LABEL org.opencontainers.image.documentation="https://github.com/host-uk/docker-
 # Install only runtime dependencies
 RUN apk add --no-cache \
     nginx \
+    nginx-mod-http-brotli \
     php${PHP_VERSION} \
     php${PHP_VERSION}-bcmath \
     php${PHP_VERSION}-ctype \
@@ -119,7 +124,9 @@ COPY --chmod=644 --chown=nobody:nobody config/nginx.conf /etc/nginx/nginx.conf
 COPY --chmod=755 --chown=nobody:nobody config/conf.d /etc/nginx/conf.d/
 COPY --chmod=644 --chown=nobody:nobody config/fpm-pool.conf.template ${PHP_INI_DIR}/php-fpm.d/www.conf.template
 COPY --chmod=644 --chown=nobody:nobody config/php.ini.template ${PHP_INI_DIR}/conf.d/custom.ini.template
-COPY --chmod=644 --chown=nobody:nobody config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Create supervisor directory with proper permissions and copy config
+RUN mkdir -p /etc/supervisor/conf.d
+COPY --chmod=644 config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy and set up entrypoint
 COPY --chmod=755 --chown=nobody:nobody scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -136,3 +143,103 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+# ============================================================
+# Stage 3: Development - Full dev environment with debugging
+# ============================================================
+FROM runtime AS development
+
+ARG PHP_VERSION
+ENV PHP_VERSION=${PHP_VERSION}
+ENV PHP_INI_DIR=/etc/php${PHP_VERSION}
+ENV APP_ENV=development
+ENV XDEBUG_MODE=develop,debug,coverage
+
+USER root
+
+# Install development tools
+RUN apk add --no-cache \
+    php${PHP_VERSION}-xdebug \
+    php${PHP_VERSION}-phpdbg \
+    php${PHP_VERSION}-pecl-pcov \
+    git \
+    make \
+    bash \
+    vim \
+    nano
+
+# Install Composer in dev image
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/bin --filename=composer
+
+# Copy xdebug configuration
+COPY --chmod=644 config/xdebug.ini ${PHP_INI_DIR}/conf.d/50_xdebug.ini
+
+# Copy development php.ini overrides
+COPY --chmod=644 config/php-dev.ini ${PHP_INI_DIR}/conf.d/60_development.ini
+
+# Install PHPUnit, PHPStan, PHP_CodeSniffer globally
+RUN composer global require --no-interaction \
+    phpunit/phpunit:^11.0 \
+    phpstan/phpstan:^2.0 \
+    squizlabs/php_codesniffer:^3.0 \
+    friendsofphp/php-cs-fixer:^3.0
+
+# Add composer bin to PATH
+ENV PATH="/root/.composer/vendor/bin:${PATH}"
+
+# Reset permissions
+RUN chown -R nobody:nobody /run /var/lib/nginx /var/log/nginx ${PHP_INI_DIR}
+
+USER nobody
+
+# Override healthcheck for development (more lenient)
+HEALTHCHECK --interval=60s --timeout=30s --start-period=10s --retries=5 \
+  CMD curl --silent --fail http://127.0.0.1/health || exit 1
+
+# ============================================================
+# Stage 4: Production - Hardened, optimized production image
+# ============================================================
+FROM runtime AS production
+
+ARG PHP_VERSION
+ENV PHP_VERSION=${PHP_VERSION}
+ENV PHP_INI_DIR=/etc/php${PHP_VERSION}
+ENV APP_ENV=production
+
+USER root
+
+# Copy production-optimized configurations
+COPY --chmod=644 config/opcache-prod.ini ${PHP_INI_DIR}/conf.d/10_opcache_prod.ini
+COPY --chmod=644 config/php-prod.ini ${PHP_INI_DIR}/conf.d/60_production.ini
+COPY --chmod=644 config/nginx-performance.conf /etc/nginx/conf.d/performance.conf
+
+# Security hardening
+RUN set -eux; \
+    # Remove unnecessary packages
+    apk del --no-cache \
+        fortify-headers \
+        apk-tools 2>/dev/null || true; \
+    # Remove package cache
+    rm -rf /var/cache/apk/* /tmp/* /var/tmp/*; \
+    # Remove shell history
+    rm -f /root/.ash_history /root/.bash_history 2>/dev/null || true; \
+    # Set restrictive permissions on sensitive directories
+    chmod 700 /root 2>/dev/null || true; \
+    # Remove crontabs
+    rm -rf /var/spool/cron /etc/crontabs /etc/periodic 2>/dev/null || true; \
+    # Remove unnecessary user accounts
+    sed -i -r '/^(nobody|root)/!d' /etc/passwd 2>/dev/null || true; \
+    sed -i -r '/^(nobody|root)/!d' /etc/shadow 2>/dev/null || true; \
+    sed -i -r '/^(nobody|root|nogroup)/!d' /etc/group 2>/dev/null || true; \
+    # Remove interactive shells for system users
+    sed -i -r 's#^(.*):[^:]*$#\1:/sbin/nologin#' /etc/passwd 2>/dev/null || true
+
+# Reset permissions
+RUN chown -R nobody:nobody /run /var/lib/nginx /var/log/nginx ${PHP_INI_DIR}
+
+USER nobody
+
+# Production healthcheck (strict)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl --silent --fail http://127.0.0.1/health || exit 1

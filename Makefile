@@ -1,4 +1,5 @@
-.PHONY: help up down restart logs build build-all push shell db-shell db-export reset-db clean health test
+.PHONY: help up down restart logs build build-all push shell db-shell db-export reset-db clean health test \
+       build-dev build-prod build-runtime test-dev test-prod test-runtime test-all test-targets
 
 # ============================================================
 # Docker Server PHP - Makefile
@@ -8,8 +9,8 @@
 REGISTRY ?= ghcr.io/host-uk/docker-server-php
 
 # Remote Docker host (optional - set to use a remote build server)
-# Example: DOCKER_HOST ?= tcp://10.69.10.26:2375
-DOCKER_HOST ?= tcp://10.69.10.26:2375
+# Example: export DOCKER_HOST=tcp://your-server:2375
+# DOCKER_HOST ?=
 
 # Default PHP version for single builds
 PHP_VERSION ?= 84
@@ -103,17 +104,79 @@ test: ## Run basic tests
 	$(MAKE) health
 
 # ============================================================
+# Build Targets
+# ============================================================
+
+build-runtime: ## Build runtime base image
+	docker build \
+		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		--target runtime \
+		-t $(REGISTRY):runtime-$(PHP_TAG) \
+		.
+
+build-dev: ## Build development image (with xdebug, phpunit, etc.)
+	docker build \
+		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		--target development \
+		-t $(REGISTRY):dev-$(PHP_TAG) \
+		.
+
+build-prod: ## Build production image (hardened)
+	docker build \
+		--build-arg ALPINE_VERSION=$(ALPINE_VERSION) \
+		--build-arg PHP_VERSION=$(PHP_VERSION) \
+		--target production \
+		-t $(REGISTRY):prod-$(PHP_TAG) \
+		.
+
+# ============================================================
+# Target Testing Commands
+# ============================================================
+
+test-runtime: build-runtime ## Test runtime target
+	@echo "============================================================"
+	@echo "Testing RUNTIME target..."
+	@echo "============================================================"
+	@./scripts/test-target.sh runtime $(REGISTRY):runtime-$(PHP_TAG)
+
+test-dev: build-dev ## Test development target
+	@echo "============================================================"
+	@echo "Testing DEVELOPMENT target..."
+	@echo "============================================================"
+	@./scripts/test-target.sh development $(REGISTRY):dev-$(PHP_TAG)
+
+test-prod: build-prod ## Test production target
+	@echo "============================================================"
+	@echo "Testing PRODUCTION target..."
+	@echo "============================================================"
+	@./scripts/test-target.sh production $(REGISTRY):prod-$(PHP_TAG)
+
+test-targets: ## Test all build targets
+	@echo "============================================================"
+	@echo "Testing all build targets..."
+	@echo "============================================================"
+	$(MAKE) test-runtime
+	$(MAKE) test-dev
+	$(MAKE) test-prod
+	@echo ""
+	@echo "============================================================"
+	@echo "All target tests completed!"
+	@echo "============================================================"
+
+# ============================================================
 # Production Build Examples
 # ============================================================
 
 build-php85: ## Build PHP 8.5 image
-	docker build --build-arg ALPINE_VERSION=3.23 --build-arg PHP_VERSION=85 -t $(REGISTRY):8.5 .
+	docker build --build-arg ALPINE_VERSION=3.23 --build-arg PHP_VERSION=85 --target production -t $(REGISTRY):8.5 .
 
 build-php84: ## Build PHP 8.4 image
-	docker build --build-arg ALPINE_VERSION=3.22 --build-arg PHP_VERSION=84 -t $(REGISTRY):8.4 .
+	docker build --build-arg ALPINE_VERSION=3.22 --build-arg PHP_VERSION=84 --target production -t $(REGISTRY):8.4 .
 
 build-php83: ## Build PHP 8.3 image
-	docker build --build-arg ALPINE_VERSION=3.20 --build-arg PHP_VERSION=83 -t $(REGISTRY):8.3 .
+	docker build --build-arg ALPINE_VERSION=3.20 --build-arg PHP_VERSION=83 --target production -t $(REGISTRY):8.3 .
 
 build-php82: ## Build PHP 8.2 image
-	docker build --build-arg ALPINE_VERSION=3.19 --build-arg PHP_VERSION=82 -t $(REGISTRY):8.2 .
+	docker build --build-arg ALPINE_VERSION=3.19 --build-arg PHP_VERSION=82 --target production -t $(REGISTRY):8.2 .
