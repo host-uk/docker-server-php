@@ -34,7 +34,7 @@ RUN apk add --no-cache \
     php${PHP_VERSION}-tokenizer
 
 # Create php symlink
-RUN ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php
+RUN ln -sf /usr/bin/php${PHP_VERSION} /usr/bin/php
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- \
@@ -112,7 +112,7 @@ RUN apk add --no-cache \
     gettext
 
 # Create php symlink
-RUN ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php
+RUN ln -sf /usr/bin/php${PHP_VERSION} /usr/bin/php
 
 WORKDIR /var/www/html
 
