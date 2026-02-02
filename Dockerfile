@@ -34,7 +34,7 @@ RUN apk add --no-cache \
     php${PHP_VERSION}-tokenizer
 
 # Create php symlink
-RUN ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php
+RUN ln -sf /usr/bin/php${PHP_VERSION} /usr/bin/php
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- \
@@ -91,7 +91,6 @@ RUN apk add --no-cache \
     php${PHP_VERSION}-intl \
     php${PHP_VERSION}-mbstring \
     php${PHP_VERSION}-mysqli \
-    php${PHP_VERSION}-opcache \
     php${PHP_VERSION}-openssl \
     php${PHP_VERSION}-pdo \
     php${PHP_VERSION}-pdo_mysql \
@@ -111,8 +110,13 @@ RUN apk add --no-cache \
     ca-certificates \
     gettext
 
+# Conditionally install opcache for older PHP versions
+RUN if [ "${PHP_VERSION}" -lt 85 ]; then \
+        apk add --no-cache php${PHP_VERSION}-opcache; \
+    fi
+
 # Create php symlink
-RUN ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php
+RUN ln -sf /usr/bin/php${PHP_VERSION} /usr/bin/php
 
 WORKDIR /var/www/html
 
